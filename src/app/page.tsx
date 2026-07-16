@@ -458,7 +458,7 @@ function QuotationPreview({ data }: { data: QuotationData }) {
           <img
             src="/shantanu-logo.png"
             alt=""
-            className="h-16 w-auto"
+            className="h-20 w-auto"
             aria-hidden
           />
         </div>
@@ -467,7 +467,7 @@ function QuotationPreview({ data }: { data: QuotationData }) {
       <hr className="my-4 border-t-2 border-brand" />
 
       {/* Title (left) + Subject */}
-      <div className="text-[22px] font-bold tracking-[0.2em] text-brand">
+      <div className="text-[15px] font-bold tracking-wide text-navy">
         QUOTATION
       </div>
       <div className="mb-4 mt-0.5 text-[11px]">

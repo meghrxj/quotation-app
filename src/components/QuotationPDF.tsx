@@ -76,7 +76,7 @@ const s = StyleSheet.create({
     borderRadius: 4,
     padding: 9,
   },
-  logo: { width: 168, height: 67, objectFit: "contain" },
+  logo: { width: 195, height: 78, objectFit: "contain" },
   companyName: {
     fontSize: 15,
     fontWeight: 700,

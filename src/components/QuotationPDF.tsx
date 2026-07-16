@@ -103,10 +103,10 @@ const s = StyleSheet.create({
 
   // ---- Title (left-aligned) + Subject line ---------------------------------
   title: {
-    fontSize: 21,
+    fontSize: 14,
     fontWeight: 700,
-    color: brand,
-    letterSpacing: 3,
+    color: navy,
+    letterSpacing: 0.5,
     textAlign: "left",
   },
   subjectLine: {

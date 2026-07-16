@@ -37,6 +37,8 @@ Or push the folder to a Git repo and import it at vercel.com/new.
 
 ## Notes for maintenance
 - Company details, T&C, bank details: edit `src/lib/company.ts` only.
+- Optional toggles in the UI: "Add total amount" (appends separate TOTAL and
+  GST rows, GST computed per item) and "Show bank details".
 - The first line of each item description prints bold; lines starting with
   "Make:" or "Model" print in muted grey.
 - Fonts are self-hosted in `public/fonts` (no runtime CDN dependency).

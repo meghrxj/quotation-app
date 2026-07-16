@@ -8,10 +8,10 @@ export const COMPANY = {
   slogan: "INDUSTRIAL SUPPLIES SINCE 2003",
   address: "Pirangut, Pune, Maharashtra",
   gst: "27AHCPG1372J1ZH",
-  phone: "+91 7350002921  |  +91 9823330789",
+  phone: "+91 7350002921  |  +91 9823671889",
   email: "shantanu.ent@gmail.com",
   website: "shantanuent.in",
-  subtitle: "Techno-commercial offer — Fire, Safety & Rescue Products",
+  defaultSubject: "Techno-commercial offer — Fire, Safety & Rescue Products",
   bank: {
     name: "The Cosmos Co-op Bank, Paud Road, Pune",
     account: "019100102707",
@@ -70,6 +70,9 @@ export interface QuotationData {
   to: string; // multiline client name + address
   quotationNo: string;
   date: string;
+  subject: string; // printed as "Subject: …" under the QUOTATION title
+  includeTotals: boolean; // appends TOTAL + GST summary rows to the table
+  showBankDetails: boolean; // toggles the bank details block at the bottom
   items: QuotationItem[];
 }
 
@@ -146,4 +149,38 @@ export function todayLongDate(): string {
     month: "long",
     year: "numeric",
   });
+}
+
+// ---------------------------------------------------------------------------
+// Totals (optional summary rows)
+// ---------------------------------------------------------------------------
+
+/** "18%" -> 18, "12 %" -> 12, "" -> 0 */
+export function parseGstPercent(gst: string): number {
+  const m = gst.match(/([\d.]+)/);
+  const n = m ? parseFloat(m[1]) : NaN;
+  return isFinite(n) ? n : 0;
+}
+
+function toNumber(v: string): number {
+  const n = parseFloat(v.replace(/,/g, "").trim());
+  return isFinite(n) ? n : 0;
+}
+
+/**
+ * base = Σ (qty × rate); gst = Σ (qty × rate × item GST%).
+ * GST is computed per item, so mixed GST rates are handled correctly.
+ */
+export function computeTotals(items: QuotationItem[]): {
+  base: number;
+  gst: number;
+} {
+  let base = 0;
+  let gst = 0;
+  for (const it of items) {
+    const amount = toNumber(it.qty) * toNumber(it.rate);
+    base += amount;
+    gst += (amount * parseGstPercent(it.gst)) / 100;
+  }
+  return { base, gst };
 }

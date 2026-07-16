@@ -3,11 +3,20 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { FilePlus2, FileText, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import {
+  Calculator,
+  FilePlus2,
+  FileText,
+  Landmark,
+  Plus,
+  ShieldCheck,
+  Trash2,
+} from "lucide-react";
 import {
   COMPANY,
   QuotationData,
   QuotationItem,
+  computeTotals,
   createEmptyItem,
   formatINR,
   formatQty,
@@ -47,6 +56,9 @@ export default function Home() {
   const [to, setTo] = useState("");
   const [quotationNo, setQuotationNo] = useState("");
   const [date, setDate] = useState("");
+  const [subject, setSubject] = useState<string>(COMPANY.defaultSubject);
+  const [includeTotals, setIncludeTotals] = useState(false);
+  const [showBankDetails, setShowBankDetails] = useState(true);
   const [items, setItems] = useState<QuotationItem[]>([createEmptyItem()]);
 
   // Default the date to today after mount (avoids server/client mismatch).
@@ -71,7 +83,15 @@ export default function Home() {
       prev.length > 1 ? prev.filter((it) => it.id !== id) : prev,
     );
 
-  const data: QuotationData = { to, quotationNo, date, items };
+  const data: QuotationData = {
+    to,
+    quotationNo,
+    date,
+    subject,
+    includeTotals,
+    showBankDetails,
+    items,
+  };
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -92,8 +112,8 @@ export default function Home() {
               Quotation Generator
             </h1>
             <p className="text-xs text-slate-500">
-              Build a techno-commercial offer and download it as a PDF —
-              instantly, fully in your browser.
+              Build a quotation and download it as a PDF — instantly, fully in
+              your browser.
             </p>
           </div>
           <div className="ml-auto hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 sm:flex">
@@ -113,7 +133,22 @@ export default function Home() {
               Client &amp; quotation details
             </h2>
 
-            <label className={labelCls} htmlFor="to">
+            <label className={labelCls} htmlFor="subject">
+              Subject
+            </label>
+            <input
+              id="subject"
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. Techno-commercial offer — Fire, Safety & Rescue Products"
+              className={inputCls}
+            />
+            <p className="mt-1 text-[11px] text-slate-400">
+              Prints as a bold “Subject:” line under the QUOTATION title.
+            </p>
+
+            <label className={`${labelCls} mt-4`} htmlFor="to">
               To
             </label>
             <textarea
@@ -156,6 +191,46 @@ export default function Home() {
                   className={inputCls}
                 />
               </div>
+            </div>
+
+            {/* ---- Optional sections ---- */}
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 transition hover:border-brand/50">
+                <input
+                  type="checkbox"
+                  checked={includeTotals}
+                  onChange={(e) => setIncludeTotals(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-[#467EB3]"
+                />
+                <span>
+                  <span className="flex items-center gap-1.5 text-[13px] font-semibold text-navy">
+                    <Calculator className="h-3.5 w-3.5 text-brand" aria-hidden />
+                    Add total amount
+                  </span>
+                  <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">
+                    Appends two separate rows to the table: TOTAL (base) and
+                    GST, each calculated per item.
+                  </span>
+                </span>
+              </label>
+
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50/60 p-3 transition hover:border-brand/50">
+                <input
+                  type="checkbox"
+                  checked={showBankDetails}
+                  onChange={(e) => setShowBankDetails(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-[#467EB3]"
+                />
+                <span>
+                  <span className="flex items-center gap-1.5 text-[13px] font-semibold text-navy">
+                    <Landmark className="h-3.5 w-3.5 text-brand" aria-hidden />
+                    Show bank details
+                  </span>
+                  <span className="mt-0.5 block text-[11px] leading-4 text-slate-500">
+                    Prints the bank details box at the very bottom of the PDF.
+                  </span>
+                </span>
+              </label>
             </div>
           </section>
 
@@ -352,20 +427,13 @@ function QuotationPreview({ data }: { data: QuotationData }) {
     .map((l) => l.trim())
     .filter(Boolean);
 
+  const totals = data.includeTotals ? computeTotals(data.items) : null;
+
   return (
     <div className="mx-auto w-full max-w-[720px] bg-white px-8 py-7 text-ink shadow-lg">
-      {/* Header */}
+      {/* Header: company details left, logo right */}
       <div className="flex items-center justify-between gap-4">
-        <div className="shrink-0 rounded bg-cream p-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/shantanu-logo.png"
-            alt=""
-            className="h-12 w-auto"
-            aria-hidden
-          />
-        </div>
-        <div className="text-right">
+        <div>
           <div className="text-[15px] font-bold tracking-wide text-navy">
             {COMPANY.name}
           </div>
@@ -385,16 +453,28 @@ function QuotationPreview({ data }: { data: QuotationData }) {
             <span className="font-semibold text-brand">{COMPANY.website}</span>
           </div>
         </div>
+        <div className="shrink-0 rounded bg-cream p-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/shantanu-logo.png"
+            alt=""
+            className="h-16 w-auto"
+            aria-hidden
+          />
+        </div>
       </div>
 
       <hr className="my-4 border-t-2 border-brand" />
 
-      {/* Title */}
-      <div className="text-center text-[22px] font-bold tracking-[0.2em] text-brand">
+      {/* Title (left) + Subject */}
+      <div className="text-[22px] font-bold tracking-[0.2em] text-brand">
         QUOTATION
       </div>
-      <div className="mb-4 text-center text-[11px] italic text-slate-500">
-        {COMPANY.subtitle}
+      <div className="mb-4 mt-0.5 text-[11px]">
+        <span className="font-bold text-navy">Subject: </span>
+        {data.subject.trim() || (
+          <span className="text-slate-400">Subject will appear here…</span>
+        )}
       </div>
 
       {/* Split address block */}
@@ -495,6 +575,36 @@ function QuotationPreview({ data }: { data: QuotationData }) {
               </tr>
             );
           })}
+
+          {/* Optional summary rows */}
+          {totals && (
+            <>
+              <tr className="border-b border-slate-200 border-t-2 border-t-navy bg-soft">
+                <td
+                  colSpan={4}
+                  className="px-1.5 py-2 text-right text-[10px] font-bold tracking-wider text-navy"
+                >
+                  TOTAL (₹)
+                </td>
+                <td className="px-1.5 py-2 text-right text-[10.5px] font-bold">
+                  {formatINR(totals.base)}
+                </td>
+                <td colSpan={2} />
+              </tr>
+              <tr className="border-b border-slate-200 bg-soft">
+                <td
+                  colSpan={4}
+                  className="px-1.5 py-2 text-right text-[10px] font-bold tracking-wider text-navy"
+                >
+                  GST (₹)
+                </td>
+                <td className="px-1.5 py-2 text-right text-[10.5px] font-bold">
+                  {formatINR(totals.gst)}
+                </td>
+                <td colSpan={2} />
+              </tr>
+            </>
+          )}
         </tbody>
       </table>
 
@@ -515,16 +625,42 @@ function QuotationPreview({ data }: { data: QuotationData }) {
         ))}
       </div>
 
-      {/* Sign-off */}
-      <div className="mt-4 text-center text-[11px] italic leading-5">
+      {/* Sign-off (left-aligned) */}
+      <div className="mt-4 text-[11px] leading-5">
         {COMPANY.closingNote[0]}
         <br />
         {COMPANY.closingNote[1]}
       </div>
 
-      {/* Bank + signatory */}
-      <div className="mt-5 flex gap-4">
-        <div className="w-[54%] rounded-r border-l-[3px] border-brand bg-soft px-3.5 py-3">
+      {/* Authorised signatory block (left) */}
+      <div className="mt-4">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/shantanu_stamp-removebg-preview.png"
+          alt=""
+          aria-hidden
+          className="mb-1 h-[74px] w-auto opacity-90"
+        />
+        <div className="text-[10px] italic text-slate-500">
+          Authorised signatory
+        </div>
+        <div className="text-[12px] font-bold tracking-wide text-navy">
+          {COMPANY.name}
+        </div>
+        <div className="mt-0.5 text-[10px] leading-4">
+          {COMPANY.address}
+          <br />
+          {COMPANY.phone}
+          <br />
+          GST NO: {COMPANY.gst}
+          <br />
+          <span className="font-bold">{COMPANY.email}</span>
+        </div>
+      </div>
+
+      {/* Bank details (very bottom, optional) */}
+      {data.showBankDetails && (
+        <div className="mt-4 w-[56%] rounded-r border-l-[3px] border-brand bg-soft px-3.5 py-3">
           <div className="mb-1.5 text-[8px] font-bold uppercase tracking-[0.15em] text-brand">
             Bank Details
           </div>
@@ -543,22 +679,7 @@ function QuotationPreview({ data }: { data: QuotationData }) {
             </div>
           </div>
         </div>
-        <div className="relative flex min-h-[110px] flex-1 flex-col items-center justify-end pb-1">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/shantanu_stamp-removebg-preview.png"
-            alt=""
-            aria-hidden
-            className="absolute top-0 h-[74px] w-auto opacity-90"
-          />
-          <div className="text-[10px] italic text-slate-500">
-            Authorised signatory
-          </div>
-          <div className="text-[12px] font-bold tracking-wide text-navy">
-            {COMPANY.name}
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Footer strip */}
       <div className="mt-6 border-t border-slate-200 pt-2 text-center text-[9px] text-slate-400">

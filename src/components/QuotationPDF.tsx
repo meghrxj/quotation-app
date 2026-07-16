@@ -12,6 +12,7 @@ import {
   COMPANY,
   PALETTE,
   QuotationData,
+  computeTotals,
   formatINR,
   formatQty,
   formatSerial,
@@ -49,6 +50,10 @@ const COL = {
   gst: "9%",
 } as const;
 
+// Width of the right-aligned label cell in the TOTAL / GST summary rows
+// (# + DESCRIPTION + UNIT + QTY columns combined).
+const TOTAL_LABEL_WIDTH = "67%";
+
 const s = StyleSheet.create({
   page: {
     paddingTop: 36,
@@ -59,19 +64,19 @@ const s = StyleSheet.create({
     color: ink,
   },
 
-  // ---- Header -------------------------------------------------------------
+  // ---- Header: company details LEFT, logo RIGHT ---------------------------
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+  headerLeft: { alignItems: "flex-start" },
   logoTile: {
     backgroundColor: cream,
     borderRadius: 4,
-    padding: 8,
+    padding: 9,
   },
-  logo: { width: 138, height: 55, objectFit: "contain" },
-  headerRight: { alignItems: "flex-end" },
+  logo: { width: 168, height: 67, objectFit: "contain" },
   companyName: {
     fontSize: 15,
     fontWeight: 700,
@@ -96,24 +101,23 @@ const s = StyleSheet.create({
     marginBottom: 18,
   },
 
-  // ---- Title --------------------------------------------------------------
+  // ---- Title (left-aligned) + Subject line ---------------------------------
   title: {
     fontSize: 21,
     fontWeight: 700,
     color: brand,
     letterSpacing: 3,
-    textAlign: "center",
+    textAlign: "left",
   },
-  subtitle: {
-    fontSize: 9,
-    fontStyle: "italic",
-    color: muted,
-    textAlign: "center",
-    marginTop: 3,
+  subjectLine: {
+    fontSize: 9.5,
+    textAlign: "left",
+    marginTop: 4,
     marginBottom: 16,
   },
+  subjectLabel: { fontWeight: 700, color: navy },
 
-  // ---- Split address block ------------------------------------------------
+  // ---- Split address block ---------------------------------------------------
   metaRow: { flexDirection: "row" },
   toBox: {
     width: "62%",
@@ -169,6 +173,23 @@ const s = StyleSheet.create({
   center: { textAlign: "center" },
   right: { textAlign: "right" },
 
+  // ---- Optional TOTAL / GST summary rows ------------------------------------
+  totalRow: {
+    flexDirection: "row",
+    borderBottomWidth: 0.75,
+    borderBottomColor: line,
+    backgroundColor: soft,
+  },
+  totalRowFirst: { borderTopWidth: 1.5, borderTopColor: navy },
+  totalLabel: {
+    fontSize: 8.5,
+    fontWeight: 700,
+    color: navy,
+    letterSpacing: 0.6,
+    textAlign: "right",
+  },
+  totalValue: { fontSize: 9, fontWeight: 700, textAlign: "right" },
+
   // ---- Terms & conditions ---------------------------------------------------
   termsHeading: {
     fontSize: 9.5,
@@ -187,48 +208,21 @@ const s = StyleSheet.create({
   },
   termText: { flex: 1, fontSize: 9, lineHeight: 1.45 },
 
-  // ---- Sign-off -------------------------------------------------------------
+  // ---- Sign-off (left-aligned) -----------------------------------------------
   signOff: {
     fontSize: 9,
-    fontStyle: "italic",
     color: ink,
-    textAlign: "center",
+    textAlign: "left",
     lineHeight: 1.5,
     marginTop: 14,
   },
 
-  // ---- Bank / signatory grid ------------------------------------------------
-  bottomGrid: { flexDirection: "row", marginTop: 20 },
-  bankBox: {
-    width: "54%",
-    backgroundColor: soft,
-    borderLeftWidth: 3,
-    borderLeftColor: brand,
-    borderTopRightRadius: 3,
-    borderBottomRightRadius: 3,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    marginRight: 16,
+  // ---- Authorised signatory block (left, above bank details) ------------------
+  signatoryBlock: {
+    marginTop: 18,
+    alignItems: "flex-start",
   },
-  bankRow: { flexDirection: "row", marginBottom: 3.5 },
-  bankLabel: { width: 74, fontSize: 8.5, color: muted },
-  bankValue: { flex: 1, fontSize: 8.5, fontWeight: 700 },
-  signatoryBox: {
-    flex: 1,
-    position: "relative",
-    minHeight: 108,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingBottom: 4,
-  },
-  stampWrap: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-  },
-  stamp: { width: 74, height: 77, opacity: 0.92 },
+  stamp: { width: 74, height: 77, opacity: 0.92, marginBottom: 4 },
   signatoryLabel: {
     fontSize: 8.5,
     fontStyle: "italic",
@@ -240,9 +234,28 @@ const s = StyleSheet.create({
     color: navy,
     letterSpacing: 0.4,
     marginTop: 2,
+    marginBottom: 3,
   },
+  signatoryLine: { fontSize: 8.5, color: ink, marginTop: 1.5 },
+  signatoryEmail: { fontSize: 8.5, fontWeight: 700, color: ink, marginTop: 1.5 },
 
-  // ---- Fixed page footer ------------------------------------------------------
+  // ---- Bank details (very bottom, optional) ------------------------------------
+  bankBox: {
+    width: "56%",
+    backgroundColor: soft,
+    borderLeftWidth: 3,
+    borderLeftColor: brand,
+    borderTopRightRadius: 3,
+    borderBottomRightRadius: 3,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 16,
+  },
+  bankRow: { flexDirection: "row", marginBottom: 3.5 },
+  bankLabel: { width: 74, fontSize: 8.5, color: muted },
+  bankValue: { flex: 1, fontSize: 8.5, fontWeight: 700 },
+
+  // ---- Fixed page footer ---------------------------------------------------------
   pageFooter: {
     position: "absolute",
     bottom: 24,
@@ -275,11 +288,39 @@ function DescriptionCell({ description }: { description: string }) {
   );
 }
 
+function SummaryRow({
+  label,
+  value,
+  first,
+}: {
+  label: string;
+  value: number;
+  first?: boolean;
+}) {
+  return (
+    <View
+      wrap={false}
+      style={first ? [s.totalRow, s.totalRowFirst] : s.totalRow}
+    >
+      <Text style={[s.td, s.totalLabel, { width: TOTAL_LABEL_WIDTH }]}>
+        {label}
+      </Text>
+      <Text style={[s.td, s.totalValue, { width: COL.rate }]}>
+        {formatINR(value)}
+      </Text>
+      <Text style={[s.td, { width: COL.hsn }]} />
+      <Text style={[s.td, { width: COL.gst }]} />
+    </View>
+  );
+}
+
 export default function QuotationPDF({ data }: { data: QuotationData }) {
   const toLines = data.to
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
+
+  const totals = data.includeTotals ? computeTotals(data.items) : null;
 
   return (
     <Document
@@ -287,12 +328,9 @@ export default function QuotationPDF({ data }: { data: QuotationData }) {
       author={COMPANY.name}
     >
       <Page size="A4" style={s.page}>
-        {/* ---------------- Header: logo left, company details right -------- */}
+        {/* ---------------- Header: company details left, logo right -------- */}
         <View style={s.headerRow}>
-          <View style={s.logoTile}>
-            <Image src="/shantanu-logo.png" style={s.logo} />
-          </View>
-          <View style={s.headerRight}>
+          <View style={s.headerLeft}>
             <Text style={s.companyName}>{COMPANY.name}</Text>
             <Text style={s.tagline}>{COMPANY.slogan}</Text>
             <Text style={s.headerLine}>{COMPANY.address}</Text>
@@ -309,13 +347,19 @@ export default function QuotationPDF({ data }: { data: QuotationData }) {
               Website: <Text style={s.headerBrand}>{COMPANY.website}</Text>
             </Text>
           </View>
+          <View style={s.logoTile}>
+            <Image src="/shantanu-logo.png" style={s.logo} />
+          </View>
         </View>
 
         <View style={s.divider} />
 
-        {/* ---------------- Title box --------------------------------------- */}
+        {/* ---------------- Title (left) + Subject field --------------------- */}
         <Text style={s.title}>QUOTATION</Text>
-        <Text style={s.subtitle}>{COMPANY.subtitle}</Text>
+        <Text style={s.subjectLine}>
+          <Text style={s.subjectLabel}>Subject: </Text>
+          {data.subject.trim() || "—"}
+        </Text>
 
         {/* ---------------- Split address block ------------------------------ */}
         <View style={s.metaRow}>
@@ -380,6 +424,14 @@ export default function QuotationPDF({ data }: { data: QuotationData }) {
               </Text>
             </View>
           ))}
+
+          {/* Optional summary rows: base total + GST, kept separate */}
+          {totals && (
+            <>
+              <SummaryRow label="TOTAL (₹)" value={totals.base} first />
+              <SummaryRow label="GST (₹)" value={totals.gst} />
+            </>
+          )}
         </View>
 
         {/* ---------------- Terms & conditions --------------------------------- */}
@@ -395,41 +447,45 @@ export default function QuotationPDF({ data }: { data: QuotationData }) {
           ))}
         </View>
 
-        {/* ---------------- Sign-off message ----------------------------------- */}
+        {/* ---------------- Sign-off message (left-aligned) --------------------- */}
         <Text style={s.signOff}>
           {COMPANY.closingNote[0]}
           {"\n"}
           {COMPANY.closingNote[1]}
         </Text>
 
-        {/* ---------------- Bank details + authorised signatory ------------------ */}
-        <View style={s.bottomGrid} wrap={false}>
-          <View style={s.bankBox}>
-            <Text style={[s.metaLabel, { marginBottom: 6 }]}>BANK DETAILS</Text>
-            <View style={s.bankRow}>
-              <Text style={s.bankLabel}>Bank Name</Text>
-              <Text style={s.bankValue}>{COMPANY.bank.name}</Text>
-            </View>
-            <View style={s.bankRow}>
-              <Text style={s.bankLabel}>Account No.</Text>
-              <Text style={s.bankValue}>{COMPANY.bank.account}</Text>
-            </View>
-            <View style={s.bankRow}>
-              <Text style={s.bankLabel}>IFSC Code</Text>
-              <Text style={s.bankValue}>{COMPANY.bank.ifsc}</Text>
-            </View>
-          </View>
-
-          <View style={s.signatoryBox}>
-            <View style={s.stampWrap}>
-              <Image
-                src="/shantanu_stamp-removebg-preview.png"
-                style={s.stamp}
-              />
-            </View>
+        {/* ------- Authorised signatory (left) + bank details (very bottom) ------- */}
+        {/* Grouped in one non-breaking container so they never split across pages */}
+        <View wrap={false}>
+          <View style={s.signatoryBlock}>
+            <Image src="/shantanu_stamp-removebg-preview.png" style={s.stamp} />
             <Text style={s.signatoryLabel}>Authorised signatory</Text>
             <Text style={s.signatoryName}>{COMPANY.name}</Text>
+            <Text style={s.signatoryLine}>{COMPANY.address}</Text>
+            <Text style={s.signatoryLine}>{COMPANY.phone}</Text>
+            <Text style={s.signatoryLine}>GST NO: {COMPANY.gst}</Text>
+            <Text style={s.signatoryEmail}>{COMPANY.email}</Text>
           </View>
+
+          {data.showBankDetails && (
+            <View style={s.bankBox}>
+              <Text style={[s.metaLabel, { marginBottom: 6 }]}>
+                BANK DETAILS
+              </Text>
+              <View style={s.bankRow}>
+                <Text style={s.bankLabel}>Bank Name</Text>
+                <Text style={s.bankValue}>{COMPANY.bank.name}</Text>
+              </View>
+              <View style={s.bankRow}>
+                <Text style={s.bankLabel}>Account No.</Text>
+                <Text style={s.bankValue}>{COMPANY.bank.account}</Text>
+              </View>
+              <View style={s.bankRow}>
+                <Text style={s.bankLabel}>IFSC Code</Text>
+                <Text style={s.bankValue}>{COMPANY.bank.ifsc}</Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* ---------------- Fixed footer with page numbers ------------------------ */}
